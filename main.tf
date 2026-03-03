@@ -18,7 +18,7 @@ resource "aws_lambda_function" "s3_remidator" {
     filename = "remediate.zip" # This will contain python code
     function_name = "S3_Public_Bucket_Blocker"
     role = aws_iam_role.lambda_exec_role.arn #The ID badge for the robot
-    handler = "remediate.lambda_handler #Tells AWS, when the robot wakes up, look inside remediate.py file and start running function named lambda_handler
+    handler = "remediate.lambda_handler" #Tells AWS, when the robot wakes up, look inside remediate.py file and start running function named lambda_handler
     runtime = "python3.9" #tells AWS what language the robot speaks
 
     #This is Dry Run switch
@@ -44,7 +44,7 @@ resource "aws_iam_role" "lambda_exec_role" {
 }
 
 #The camera watching over resources / think of it like the eyes of the system
-resource "aws_config_configuration_recorder "main" {
+resource "aws_config_configuration_recorder" "main" {
     #build a recorder object and name it main
     name = "s3_recorder"
     #official name that will appear in the AWS Console
@@ -67,7 +67,7 @@ resource "aws_config_delivery_channel" "main" {
 
 # "Rulebook" so the camera knows what to look for
 resource = "aws_config_config_rule" "s3_public_prohibited" {
-    name = "s3-bucket-public-read-s3_public_prohibited
+    name = "s3-bucket-public-read-prohibited
     description = "Alerts if a bucket is public"
 
     source {
@@ -104,7 +104,7 @@ resource "aws_s3_bucket" "config_logs" {
 
 #Double Lock - Blocking Public Access  
 resource "aws_s3_bucket_public_access_block" "config_logs_block" {
-    bucket = "aws_s3_public_access_block" "config_logs_block" {
+    bucket = "aws_s3_bucket.config_logs.id" {
         block_public_acls = true
         block_public_policy = true
         ignore_public_acls = true
@@ -122,9 +122,8 @@ resource "aws_s3_bucket_policy" "allow_config_logging" {
             {
                 Sid = "AllowConfigWrite"
                 Effect = "Allow"
-                Principal = { Service = "config.amazonaws.com" }
-                #This is the "who" only the AWS Config service itself is allowed this permit
-                Action = "s3:PutObject 
+                Principal = { Service = "config.amazonaws.com" } #This is the who only the AWS Config service itself is allowed this permit
+                Action = "s3:PutObject"
                 #Only ability to upload logs / LEAST PRIVILAGE
                 Resource = "${aws_s3_bucket.config_logs.arn}/*"
                 #This is "where", the sensor can only upload inside the specific bucket
@@ -139,6 +138,7 @@ resource "aws_config_remediation_configuration" "s3_auto_fix" { # engine that ha
     config_rule_name = aws_config_config_rule.s3_public_prohibited.name #Input / Tells the remediation engine Listen to the specific rule we created earlier
     resource_type = "AWS::S3::Bucket" #Confirms we are only searching for S3 buckets only
     target_type = "SSM_DOCUMENT" #Stands for Systems Manager and its like a pre-written recipe. Instead of writing our own Python code for every little task, we can use this library of pre-made fixes
+    target_id = "AWS-PublishSNSnotification"
 
     automatic = true #IMPORTANT / turns this into a true automated project
     maximum_automatic_attempts = 5 #If a robot fails to close the bucket, it will try 5 more times

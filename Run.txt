@@ -1,0 +1,39 @@
+#How to Run(Local Stack - This was run on VSCode)
+
+Phase 1 ->
+
+1. LocalStack cli: pip install LocalStack
+2. Terraform-local: pip install terraform-local
+3. AWS CLI Local: pip install awscli-local
+4. Docker: Ensure Docker Desktop is running on machine
+
+Phase 2 ->
+
+In Home terminal, start LocalStack - PC acts like an AWS Data Center
+
+1. In Bash: localstack start -d
+
+Phase 3 ->
+
+AWS Lambda needs a .zip file, in project folder, zip up python script
+
+1. In Bash: zip remediate.zip remediate.py
+2. In Bash: tflocal InvokeFunction
+3. In Bash: tflocal apply --auto-approve
+
+Phase 4 ->
+(Fake security Violation test)
+
+1. Creat a bucket: awslocal mb s3://hacker-target-bucket
+2. Make bucket pubic: awslocal s3api put-bucket-acl --bucket hacker-target-bucket --acl public-read
+
+Phase 5 ->
+(Verification)
+
+1. Bash: awslocal s3api get-public-access-block --bucket hacker-target-bucket
+
+You should see BlockPublicAcls: true and BlockPublicPolicy:true
+
+2. awslocal logs tail /aws/lambda/S3_Public_Bucket_Blocker --follow
+
+Check robot's python logs
