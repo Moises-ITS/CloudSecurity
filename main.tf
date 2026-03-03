@@ -18,7 +18,7 @@ resource "aws_lambda_function" "s3_remidator" {
     filename = "remediate.zip" # This will contain python code
     function_name = "S3_Public_Bucket_Blocker"
     role = aws_iam_role.lambda_exec_role.arn #The ID badge for the robot
-    handler = "remediate.lambda_handler #Tells AWS, "when the robot wakes up, look inside remediate.py file and start running function named lambda_handler"
+    handler = "remediate.lambda_handler #Tells AWS, when the robot wakes up, look inside remediate.py file and start running function named lambda_handler
     runtime = "python3.9" #tells AWS what language the robot speaks
 
     #This is Dry Run switch
@@ -62,7 +62,7 @@ resource "aws_config_configuration_recorder_status" "main" {
 resource "aws_config_delivery_channel" "main" {
     name = "s3_delivery_channel"
     s3_bucket_name = aws_s3_bucket.config_logs.bucket
-    #tells recorder, "When you find a change, save the report in this S3 Bucket"
+    #tells recorder, When you find a change, save the report in this S3 Bucket
 }
 
 # "Rulebook" so the camera knows what to look for
@@ -85,7 +85,7 @@ resource = "aws_config_config_rule" "s3_public_prohibited" {
 resource "aws_lambda_permission" "allow_config" {
     statement_id = "AllowConfigInvocation"
     action = "lambda:InvokeFunction"
-    #This specific function is the "right" to run code
+    #This specific function is the right to run code
     function_name = aws_lambda_function.s3_remediator.function_name
     #points to robot's real name
     principal = "config.amazonaws.com"
@@ -99,7 +99,7 @@ resource "aws_s3_bucket" "config_logs" {
     bucket = "my-security-audit-logs-${random_id.suffix.hex}" #must be globally unique
     #Use random id because S3 buckets cannot have the same name
     force_destroy = true #Allows terraform to delete it even if it has logs inside
-    #Usually AWS wont let you delete buckets if it has files so this makes it easier to "clean-up" 
+    #Usually AWS wont let you delete buckets if it has files so this makes it easier to clean-up
 }
 
 #Double Lock - Blocking Public Access  
@@ -131,4 +131,21 @@ resource "aws_s3_bucket_policy" "allow_config_logging" {
             }
         ]
     })
+}
+
+#Final birdge between the sensor and the robot
+
+resource "aws_config_remediation_configuration" "s3_auto_fix" { # engine that handles auto fixes and name
+    config_rule_name = aws_config_config_rule.s3_public_prohibited.name #Input / Tells the remediation engine Listen to the specific rule we created earlier
+    resource_type = "AWS::S3::Bucket" #Confirms we are only searching for S3 buckets only
+    target_type = "SSM_DOCUMENT" #Stands for Systems Manager and its like a pre-written recipe. Instead of writing our own Python code for every little task, we can use this library of pre-made fixes
+
+    automatic = true #IMPORTANT / turns this into a true automated project
+    maximum_automatic_attempts = 5 #If a robot fails to close the bucket, it will try 5 more times
+    retry_attempts_seconds = 60 #wait one minute between each try to not spam the system
+
+    parameter {
+        name = "AutomationAssumeRole" #Remediation Engine Badge(IAM) 
+        static_value = aws_iam_role.remediation_role.arn
+    }
 }
